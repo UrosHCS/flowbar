@@ -1,11 +1,15 @@
-function response(jsonBody: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(jsonBody), {
+function response(jsonBody: Record<string, unknown> | null, status = 200) {
+  return new Response(jsonBody ? JSON.stringify(jsonBody) : null, {
     status,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
     },
   });
+}
+
+export function noContentResponse() {
+  return response(null, 204);
 }
 
 function errorResponse({
@@ -56,9 +60,12 @@ export function forbiddenErrorResponse(message: string, code?: string) {
 /**
  * Request lacks valid authentication credentials (not logged in)
  */
-export function unauthorizedErrorResponse(message: string, code?: string) {
+export function unauthorizedErrorResponse(
+  message: string | null | undefined,
+  code?: string | null | undefined,
+) {
   return errorResponse({
-    message,
+    message: message ?? 'Unauthorized',
     code: code ?? 'unauthorized',
     status: 401,
   });

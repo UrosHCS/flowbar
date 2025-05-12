@@ -5,12 +5,13 @@ import OpenAI from 'npm:openai';
 import {
   forbiddenErrorResponse,
   internalServerErrorResponse,
-  notFoundErrorResponse,
   unauthorizedErrorResponse,
   validationErrorResponse,
 } from '../../lib/response.ts';
 import { supabase } from '../../lib/supabase.ts';
 import { middleware } from '../../lib/middleware.ts';
+import { getUserFromRequest } from '../../lib/auth.ts';
+
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
 if (!openaiApiKey) {
@@ -38,17 +39,10 @@ async function handle(req: Request) {
     );
   }
 
-  // Validate user authentication
-  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser(token);
-  if (authError || !user) {
-    return unauthorizedErrorResponse(
-      'Unauthorized',
-      authError?.code ?? 'unauthorized',
-    );
+  const { user, error } = await getUserFromRequest(req);
+
+  if (error) {
+    return unauthorizedErrorResponse(error.message, error.code);
   }
 
   const { data: usages, error: usagesError } = await supabase
@@ -63,7 +57,10 @@ async function handle(req: Request) {
   }
 
   if (!usages) {
-    return notFoundErrorResponse('Usages not found', 'usages_not_found');
+    return internalServerErrorResponse(
+      'Could not find your usages data',
+      'usages_not_found',
+    );
   }
 
   if (usages.remaining_tokens <= 10) {

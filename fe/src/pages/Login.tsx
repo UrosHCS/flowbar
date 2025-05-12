@@ -12,6 +12,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
+import { onSignup } from '@/components/auth/on-signup';
 
 export function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -132,7 +133,7 @@ function SignUp({ onSwitch }: { onSwitch: () => void }) {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
@@ -141,8 +142,18 @@ function SignUp({ onSwitch }: { onSwitch: () => void }) {
         throw error;
       }
       // Successful signup will redirect via Supabase auth state change
-    } catch (error: any) {
-      setError(error.message || 'Failed to sign up');
+
+      // On-signup hook:
+      if (!data.session) {
+        console.error('No session in signup response', data);
+        return;
+      }
+
+      await onSignup(data.session);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to sign up';
+      setError(message);
     } finally {
       setLoading(false);
     }
